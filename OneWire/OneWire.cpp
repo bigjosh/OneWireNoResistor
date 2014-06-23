@@ -273,19 +273,22 @@ uint8_t OneWire::read_bit(void)
 // Write a byte. The writing code uses the active drivers to raise the
 // pin high, if you need power after the write (e.g. DS18S20 in
 // parasite power mode) then set 'power' to 1, otherwise the pin will
-// go tri-state at the end of the write to avoid heating in a short or
-// other mishap.
-//
+// be left with pull-up enabled 
+
 void OneWire::write(uint8_t v, uint8_t power /* = 0 */) {
     uint8_t bitMask;
 
     for (bitMask = 0x01; bitMask; bitMask <<= 1) {
-	OneWire::write_bit( (bitMask & v)?1:0);
+		OneWire::write_bit( (bitMask & v)?1:0);
     }
+	
+	// write_bit always returns with bus actively driven high,
+	// so if caller requests power then we don't need to do anything. 
+	
     if ( !power) {
-	noInterrupts();
-	DIRECT_MODE_INPUT(baseReg, bitmask);
-	interrupts();
+		noInterrupts();	
+		DIRECT_MODE_INPUT(baseReg, bitmask);	// if power not requested, then enable pull-up
+		interrupts();
     }
 }
 
