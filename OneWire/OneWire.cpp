@@ -212,6 +212,8 @@ uint8_t OneWire::busFail() {
 // Write a bit. Port and bit is used to cut lookup time and provide
 // more certain timing.
 //
+// Leaves bus actively driven high
+
 void OneWire::write_bit(uint8_t v)
 {
 	IO_REG_TYPE mask=bitmask;
@@ -224,22 +226,24 @@ void OneWire::write_bit(uint8_t v)
 		delayMicroseconds(10);
 		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
 		interrupts();
-		delayMicroseconds(55);
+		delayMicroseconds(55);			// Make sure output is high when slave samples 15us-60us after initial low 
 	} else {
 		noInterrupts();
 		DIRECT_WRITE_LOW(reg, mask);
 		DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
-		delayMicroseconds(65);
-		DIRECT_WRITE_HIGH(reg, mask);	// drive output high
+		delayMicroseconds(65);			// Make sure output is low when salve samples 15us-60us after initial low
+		DIRECT_WRITE_HIGH(reg, mask);	// drive high 
 		interrupts();
-		delayMicroseconds(5);
-	}
+		delayMicroseconds(5);			// continue driving high for at least 1us recovery (Trec)
+	}	
 }
 
 //
 // Read a bit. Port and bit is used to cut lookup time and provide
 // more certain timing.
 //
+// Leaves bus with internal pull-up enabled 
+
 uint8_t OneWire::read_bit(void)
 {
 	IO_REG_TYPE mask=bitmask;
@@ -247,15 +251,21 @@ uint8_t OneWire::read_bit(void)
 	uint8_t r;
 
 	noInterrupts();
+	DIRECT_WRITE_LOW(reg, mask);	
 	DIRECT_MODE_OUTPUT(reg, mask);
-	DIRECT_WRITE_LOW(reg, mask);
-	delayMicroseconds(3);
+	delayMicroseconds(3);			// Initiate read slot (Tint) 
+			
 	DIRECT_MODE_INPUT(reg, mask);	// let pin float, pull up will raise
-	DIRECT_WRITE_HIGH( reg , mask ); // enable pull-up resistor	
-	delayMicroseconds(10);
-	r = DIRECT_READ(reg, mask);
+	DIRECT_WRITE_HIGH( reg, mask);	// Enable pull-up
+	delayMicroseconds(10);			// Allow time for signal to rise (Trc) 
+	r = DIRECT_READ(reg, mask);		// Sample before the 15us deadline when the slave will stop pulling low (in the case of a 0 bit)
+									// (We allow 1us slop time buffer) 
 	interrupts();
-	delayMicroseconds(53);
+	delayMicroseconds(53);		
+									// Minimum slot time is 60us	
+									// We have already used 14us 
+									// Add an Extra 1us for recovery time
+									// Plus 5us of extra slop time to be safe in case of timing mismatches
 	return r;
 }
 
@@ -288,7 +298,6 @@ void OneWire::write_bytes(const uint8_t *buf, uint16_t count, bool power /* = 0 
     interrupts();
   }
 }
-
 //
 // Read a byte
 //
