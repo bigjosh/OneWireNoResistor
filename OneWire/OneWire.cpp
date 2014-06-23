@@ -134,42 +134,78 @@ OneWire::OneWire(uint8_t pin)
 #endif
 }
 
+static uint8_t busFailFlag; 	// Set to one if bus failed to return to high via pull-up	
 
-// Perform the onewire reset function.  We will wait up to 250uS for
-// the bus to come high, if it doesn't then it is broken or shorted
-// and we return a 0;
-//
-// Returns 1 if a device asserted a presence pulse, 0 otherwise.
-//
+// Perform the onewire reset function.  1=Ok to proceed, 0=no devices found or possible short to ground on bus
+
+// First we will send a reset pulse and see if any slaves send back 
+// a presence pulse. If not, then we return 0. 
+
+// Next we check to make sure that what we saw was really a presence
+// by checking to see if the bus returns to high by the pull-up. 
+// If not, then their might be a short to ground so we return a 0. 
+
+// Only if we both get a presence pulse, and we are able to see the bus return to high,
+// then we return a 1 to indicate ok to proceed.
+
+// Leaves with internal pull-up enabled
+
 uint8_t OneWire::reset(void)
 {
+	uint8_t r;
+
 	IO_REG_TYPE mask = bitmask;
 	volatile IO_REG_TYPE *reg IO_REG_ASM = baseReg;
-	uint8_t r;
-	uint8_t retries = 125;
+	
+	// First drive the bus low to send reset pulse
+	
+	noInterrupts();
+	DIRECT_WRITE_LOW(reg, mask); 	 
+	DIRECT_MODE_OUTPUT(reg, mask);	 // drive output low
+	interrupts();
+	delayMicroseconds(480);			 // Wait for salves to see the reset pulse (Trstl) 
+	noInterrupts();
+	DIRECT_MODE_INPUT(reg, mask);	 // Stop driving high 
+	DIRECT_WRITE_HIGH( reg , mask ); // enable pull-up resistor
+	
+	delayMicroseconds(70);			 // give the slaves a chance to pull bus low 
 
-	noInterrupts();
-	DIRECT_MODE_INPUT(reg, mask);
+	r = !DIRECT_READ(reg, mask);     // if the bus is low now, it is a presence pulse from one or more slaves
 	interrupts();
-	// wait until the wire is high... just in case
-	do {
-		if (--retries == 0) return 0;
-		delayMicroseconds(2);
-	} while ( !DIRECT_READ(reg, mask));
+	delayMicroseconds(410);          // give slaves plenty of time to complete their presence pulse
+	
+	if (!DIRECT_READ(reg, mask)) {	 // Check to see if the bus has failed to return to high
+	
+	
+		busFailFlag = 1 ;			 // Remember that bus did not return to high. Used to support busTest() 
+		
+		return(0);					 // If the bus is still low, then there might be a short to ground,
+									 // so we should not continue because actively driving high might
+									 // fry stuff. Could also be that the pull-up is not strong enough 
+									 // for connected network, in which reading will not work anyway
+									 
+									 // It would be nice to break this out to help people debug bus problems,
+									 // but returning an extra value could break existing code. 
+	}									 	
+	
+	busFailFlag = 0 ;			 // Remember that bus did return to high. Used to support busTest() 
+	
+	return r;				     // return 0 if we saw a presence pulse or 1 if the bus stayed high after reset
+	
+	// Leave the pin in pull-up mode after reset
+	
+}
 
-	noInterrupts();
-	DIRECT_WRITE_LOW(reg, mask);
-	DIRECT_MODE_OUTPUT(reg, mask);	// drive output low
-	interrupts();
-	delayMicroseconds(480);
-	noInterrupts();
-	DIRECT_MODE_INPUT(reg, mask);	// allow it to float
-	DIRECT_WRITE_HIGH( reg , mask ); // enable pull-up resistor	
-	delayMicroseconds(70);
-	r = !DIRECT_READ(reg, mask);
-	interrupts();
-	delayMicroseconds(410);
-	return r;
+// Only valid after a call to reset() that returned 0. 
+// Returns 1 if the bus did not float to
+// high after reset. Could indicate a short from bus to 
+// ground, or pull-up resistor too small for attached network
+
+// Would have been cleaner to fold this into a reset() return value, but that could have 
+// broken existing code that explicitly checks for reset() to have value of 1 to detect failure. 
+
+uint8_t OneWire::busFail() {
+	return busFailFlag;
 }
 
 //
