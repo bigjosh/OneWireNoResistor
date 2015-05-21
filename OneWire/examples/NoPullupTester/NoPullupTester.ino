@@ -14,7 +14,7 @@
 
 // Uncomment this line if you are using the updated dallas_temp_library that 
 // supports the busFail() method to diagnose bus problems
-#define BUSFAIL 
+// #define BUSFAIL 
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
