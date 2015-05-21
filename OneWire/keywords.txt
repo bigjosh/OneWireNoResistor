@@ -13,6 +13,7 @@ OneWire	KEYWORD1
 #######################################
 
 reset	KEYWORD2
+busFail	KEYWORD2
 write_bit	KEYWORD2
 read_bit	KEYWORD2
 write	KEYWORD2
