@@ -10,7 +10,6 @@
 
 // Data wire is plugged into port 2 on the Arduino
 #define ONE_WIRE_BUS 9
-#define TEMPERATURE_PRECISION 9
 
 // Uncomment this line if you are using the updated dallas_temp_library that 
 // supports the busFail() method to diagnose bus problems
