@@ -1,6 +1,8 @@
 OneWireNoResistor
 =================
 
+### This branch is for the ESP8266 and was contributed by Antoine
+
 A slight update of the popular Arduino 1-wire library that...
 
 1) Eliminates the need for the extra pull-up resistor (the big show)
