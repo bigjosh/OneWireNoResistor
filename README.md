@@ -10,10 +10,10 @@ A slight update of the popular Arduino 1-wire library for AVR-based arduinos tha
 3) Slight updates to comments and formating
 
 
-New branch is for the ESP8266 and was contributed by Antoine here..
+### New branch is for the ESP8266 and was contributed by Antoine here..
 
 https://github.com/bigjosh/OneWireNoResistor/tree/ESP8266
 
-More info at...
+### More info at...
 
 http://wp.josh.com/2014/06/23/no-external-pull-up-needed-for-ds18b20-temp-sensor/
